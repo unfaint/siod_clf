@@ -1,5 +1,5 @@
 import torch
-from torchvision import models
+from data.dataset import COWCDataset
 
 print(torch.cuda.is_available())
-models
+dataset = COWCDataset(file_list= [])
