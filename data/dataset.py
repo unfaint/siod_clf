@@ -1,17 +1,16 @@
 import numpy as np
 import torch
+import torch.utils.data
 from PIL import Image
-from torch import utils
 
-
-class COWCDataset(utils.data.dataset.Dataset):
+class COWCDataset(torch.utils.data.Dataset):
     """
     Loading images from COWC-N dataset, see description at
     https://github.com/LLNL/cowc/tree/master/COWC-M
     """
 
     def __init__(self, file_list, transform= None):
-        super(COWCDataset, self).__init__()
+        #super(COWCDataset, self).__init__()
         self.file_list = file_list
         self.labels = np.full((len(file_list),3), 0.0)
         self.transform = transform
