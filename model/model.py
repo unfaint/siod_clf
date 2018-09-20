@@ -34,7 +34,7 @@ class VGGRegCls(torch.nn.Module):
         )
 
         self.last_conv = torch.nn.Sequential(
-            # torch.nn.Dropout(p= 0.5),
+            torch.nn.Dropout(p= 0.5),
             torch.nn.Conv2d(256, 500, kernel_size=13, stride=1, padding=3),
             torch.nn.BatchNorm2d(500, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True),
             torch.nn.ReLU(),
