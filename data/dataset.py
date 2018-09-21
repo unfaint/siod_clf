@@ -10,7 +10,6 @@ class COWCDataset(torch.utils.data.Dataset):
     """
 
     def __init__(self, file_list, transform= None):
-        #super(COWCDataset, self).__init__()
         self.file_list = file_list
         self.labels = np.full((len(file_list),3), 0.0)
         self.transform = transform
@@ -18,7 +17,7 @@ class COWCDataset(torch.utils.data.Dataset):
     def __getitem__(self, index):
         file = self.file_list[index]
 
-        img = np.array(Image.open(Image.open(file)))
+        img = np.array(Image.open(file))
 
         label = self.labels[index]
         label[2] = 1 if file.split('.')[0][-3:] == 'car' else 0

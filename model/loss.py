@@ -44,6 +44,8 @@ class MinDistLoss(torch.nn.Module):
 
     def forward(self, outputs_l, outputs_c, labels):
         locations = outputs_l * 10 + self.rf_centers
+        locations = locations.view(locations.shape[0], locations.shape[1], -1) # TODO replace with unfold
+
         x_dist = torch.log(torch.exp(labels[0, :, 0].float().cuda().unsqueeze(1) / 257).matmul(
             1 / torch.exp(locations[0, 0, :].unsqueeze(1).t() / 257)))
         y_dist = torch.log(torch.exp(labels[0, :, 1].float().cuda().unsqueeze(1) / 257).matmul(
