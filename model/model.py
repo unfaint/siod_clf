@@ -30,7 +30,6 @@ class VGGRegCls(torch.nn.Module):
             torch.nn.BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True),
             torch.nn.ReLU(inplace=True),
             torch.nn.MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False),
-
         )
 
         self.last_conv = torch.nn.Sequential(
