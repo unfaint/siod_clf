@@ -1,6 +1,8 @@
 from tqdm import tqdm
 from torch.autograd import Variable
-from numpy import mean as np_mean
+from torch import argmax
+from numpy import mean
+from sklearn.metrics import accuracy_score
 
 
 def train_model(model, criterion, optimizer, train_dataloader, test_dataloader= None, epochs= 10, iterations= None):
@@ -43,6 +45,7 @@ def train_model(model, criterion, optimizer, train_dataloader, test_dataloader= 
 
             train_loss_list.append(float(loss))
             train_epoch_loss.append(float(loss))
+            train_epoch_acc.append(accuracy_score(labels[:,2], argmax(outputs_c, 1)))
 
         if test_dataloader is not None:
             test_epoch_loss = []
@@ -65,9 +68,9 @@ def train_model(model, criterion, optimizer, train_dataloader, test_dataloader= 
                 test_loss_list.append(float(loss))
                 test_epoch_loss.append(float(loss))
 
-            print('Epoch {}, loss {}'.format(e, np_mean(test_epoch_loss)))
+            print('Epoch {}, loss {}, accuracy {}'.format(e, mean(test_epoch_loss), mean(test_epoch_acc)))
         else:
-            print('Epoch {}, loss {}'.format(e, np_mean(train_epoch_loss)))
+            print('Epoch {}, loss {}, accuracy {}'.format(e, mean(train_epoch_loss), mean(train_epoch_acc)))
 
     print('Finished training!')
 
