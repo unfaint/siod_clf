@@ -2,6 +2,7 @@ import numpy as np
 import torch
 import torch.utils.data
 from PIL import Image
+import os
 
 class COWCDataset(torch.utils.data.Dataset):
     """
@@ -45,3 +46,22 @@ class COWCDataset(torch.utils.data.Dataset):
     def __len__(self):
         return len(self.file_list)
 
+
+class OIRDSDataset(torch.utils.data.Dataset):
+    def __init__(self, data_path, file_list, labels, transform=None):
+        self.data_path = data_path
+        self.file_list = file_list
+        self.labels = labels
+        self.transform = transform
+
+    def __getitem__(self, index):
+        file = self.file_list[index]
+        img = Image.open(os.path.join(self.data_path, file))
+        labels = self.labels[index]
+        if self.transform is not None:
+            img = self.transform(img)
+
+        return img, torch.LongTensor(labels)
+
+    def __len__(self):
+        return len(self.file_list)

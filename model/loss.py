@@ -1,6 +1,6 @@
 import torch
-
 import torch.nn.functional
+from utils.receptive_field import *
 
 
 class RegClsLoss(torch.nn.Module):
@@ -16,6 +16,9 @@ class RegClsLoss(torch.nn.Module):
 
     def forward(self, outputs_l, outputs_c, labels):
         batch_size = labels.shape[0]
+
+        outputs_l = outputs_l.view(batch_size, -1)
+        outputs_c = outputs_c.view(batch_size, -1)
 
         reg_loss = self.reg_criterion(outputs_l, labels[:,:2])
         clf_loss = self.clf_criterion(outputs_c, labels[:,2].long())
@@ -34,8 +37,6 @@ class MinDistLoss(torch.nn.Module):
 
     def __init__(self, rf_centers):
         """
-
-
         :param rf_centers: CUDA
         """
         super(MinDistLoss, self).__init__()
@@ -43,6 +44,7 @@ class MinDistLoss(torch.nn.Module):
         self.rf_centers = rf_centers
 
     def forward(self, outputs_l, outputs_c, labels):
+
         locations = outputs_l * 10 + self.rf_centers
         locations = locations.view(locations.shape[0], locations.shape[1], -1) # TODO replace with unfold
 
@@ -100,16 +102,6 @@ class MinDistLoss(torch.nn.Module):
             fn1 = outputs_c[:, 1][fn_mask].unsqueeze(0)
             fn = torch.cat([fn0, fn1]).unsqueeze(0)
 
-        eps = 0.001
-
-        tp_w = 10 / (tp_n + eps) if tp_n > 0 else 0
-
-        fp_w = 10 / (fp_n + eps) if fp_n > 0 else 0
-
-        tn_w = 10 / (tn_n + eps) if tn_n > 0 else 0
-
-        fn_w = 10 / (fn_n + eps) if fn_n > 0 else 0
-
         tp_loss = self.criterion(tp, torch.ones((tp.size(0), tp.size(2))).long().cuda()) if tp_n > 0 else 0
 
         fp_loss = self.criterion(fp, torch.zeros((fp.size(0), fp.size(2))).long().cuda()) if fp_n > 0 else 0
@@ -118,6 +110,6 @@ class MinDistLoss(torch.nn.Module):
 
         fn_loss = self.criterion(fn, torch.ones((fn.size(0), fn.size(2))).long().cuda()) if fn_n > 0 else 0
 
-        loss = tp_w * tp_loss + fp_w * fp_loss + tn_w * tn_loss + fn_w * fn_loss
+        loss = tp_loss + fp_loss + tn_loss + fn_loss
 
         return loss

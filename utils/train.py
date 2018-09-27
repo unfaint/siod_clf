@@ -1,11 +1,10 @@
-from tqdm import tqdm
 from torch.autograd import Variable
 from torch import argmax
 from numpy import mean
 from sklearn.metrics import accuracy_score
 
 
-def train_model(model, criterion, optimizer, train_dataloader, test_dataloader= None, epochs= 10, iterations= None):
+def train_model(model, criterion, optimizer, train_dataloader, test_dataloader= None, epochs= 10, iterations= None, accuracy= False):
 
     if (iterations is None) | (iterations > train_dataloader.__len__()):
         train_iterations = train_dataloader.__len__()
@@ -20,6 +19,9 @@ def train_model(model, criterion, optimizer, train_dataloader, test_dataloader= 
     train_loss_list = []
     test_loss_list = []
 
+    train_acc_list = []
+    test_acc_list = []
+
     for e in range(epochs):
         train_epoch_loss = []
         train_epoch_acc = []
@@ -27,7 +29,7 @@ def train_model(model, criterion, optimizer, train_dataloader, test_dataloader= 
         dataiter = iter(train_dataloader)
 
         model.train(True)
-        for i in tqdm(range(train_iterations)):
+        for i in range(train_iterations):
             model.zero_grad()
 
             inputs, labels = dataiter.next()
@@ -37,15 +39,17 @@ def train_model(model, criterion, optimizer, train_dataloader, test_dataloader= 
 
             outputs_l, outputs_c = model(inputs)
 
-            outputs_l, outputs_c = outputs_l.view(batch_size, -1), outputs_c.view(batch_size, -1)
-
             loss = criterion(outputs_l, outputs_c, labels)
             loss.backward()
             optimizer.step()
 
             train_loss_list.append(float(loss))
             train_epoch_loss.append(float(loss))
-            train_epoch_acc.append(accuracy_score(labels[:,2], argmax(outputs_c, 1)))
+            if accuracy:
+                epoch_acc = accuracy_score(labels[:,2], argmax(outputs_c.view(batch_size, -1), 1))
+                train_epoch_acc.append(epoch_acc)
+                train_acc_list.append(epoch_acc)
+
 
         if test_dataloader is not None:
             test_epoch_loss = []
@@ -68,13 +72,21 @@ def train_model(model, criterion, optimizer, train_dataloader, test_dataloader= 
                 test_loss_list.append(float(loss))
                 test_epoch_loss.append(float(loss))
 
-            print('Epoch {}, loss {}, accuracy {}'.format(e, mean(test_epoch_loss), mean(test_epoch_acc)))
+            print('Epoch {}, loss {}{}'.format(e, mean(test_epoch_loss),
+                                               ', accuracy {}'.format(mean(test_epoch_acc)) if accuracy else ''
+                                               )
+                  )
         else:
-            print('Epoch {}, loss {}, accuracy {}'.format(e, mean(train_epoch_loss), mean(train_epoch_acc)))
+            print('Epoch {}, loss {}{}'.format(e, mean(train_epoch_loss),
+                                               ', accuracy {}'.format(mean(train_epoch_acc)) if accuracy else ''
+                                               )
+                  )
 
     print('Finished training!')
 
     return {
-            'train_loss_list':train_loss_list,
-            'test_loss_list':test_loss_list
+            'train_loss_list': train_loss_list,
+            'test_loss_list': test_loss_list,
+            'train_acc_list': train_acc_list,
+            'test_acc_list': test_acc_list
             }
