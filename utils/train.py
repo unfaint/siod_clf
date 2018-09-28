@@ -6,10 +6,10 @@ from sklearn.metrics import accuracy_score
 
 def train_model(model, criterion, optimizer, train_dataloader, test_dataloader= None, epochs= 10, iterations= None, accuracy= False):
 
-    if (iterations is None) | (iterations > train_dataloader.__len__()):
+    if iterations is None:
         train_iterations = train_dataloader.__len__()
     else:
-        train_iterations = iterations
+        train_iterations = iterations if iterations < train_dataloader.__len__() else train_dataloader.__len__()
 
     test_iterations = train_iterations
 
@@ -58,7 +58,7 @@ def train_model(model, criterion, optimizer, train_dataloader, test_dataloader= 
             dataiter = iter(test_dataloader)
 
             model.train(False)
-            for i in tqdm(range(test_iterations)):
+            for i in range(test_iterations):
                 inputs, labels = dataiter.next()
                 inputs, labels = Variable(inputs).cuda(), Variable(labels).cuda()
 

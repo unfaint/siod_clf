@@ -1,6 +1,5 @@
 import torch
 import torch.nn.functional
-from utils.receptive_field import *
 
 
 class RegClsLoss(torch.nn.Module):
@@ -35,13 +34,15 @@ class RegClsLoss(torch.nn.Module):
 class MinDistLoss(torch.nn.Module):
 
 
-    def __init__(self, rf_centers):
+    def __init__(self, rf_centers, th_c= 0.6, th_dist= 12):
         """
         :param rf_centers: CUDA
         """
         super(MinDistLoss, self).__init__()
         self.criterion = torch.nn.CrossEntropyLoss()
         self.rf_centers = rf_centers
+        self.th_c = th_c
+        self.th_dist = th_dist
 
     def forward(self, outputs_l, outputs_c, labels):
 
@@ -59,48 +60,69 @@ class MinDistLoss(torch.nn.Module):
         dist_fold = torch.nn.functional.fold(torch.unsqueeze(xy_dist, 0), N_sq, (1, 1))
         min_dist = torch.min(dist_fold, dim=1)[0]
 
-        th_c = 0.5
-        th_dist = 12
 
         # TP
-        tp_mask = (outputs_c[:, 1] > th_c) & (min_dist < th_dist) # TODO refactor to get rid of repetitive code
+        tp_mask = (outputs_c[:, 1] > self.th_c) & (min_dist < self.th_dist) # TODO refactor to get rid of repetitive code
 
         tp0 = outputs_c[:, 0][tp_mask]
         tp_n = len(tp0)
+
+        # FP
+        fp_mask = (outputs_c[:, 1] > self.th_c) & (min_dist > self.th_dist)
+
+        fp0 = outputs_c[:, 0][fp_mask]
+        fp_n = len(fp0)
+
+
+        # TN
+        tn_mask = (outputs_c[:, 0] > self.th_c) & (min_dist > self.th_dist)
+
+        tn0 = outputs_c[:, 0][tn_mask]
+        tn_n = len(tn0)
+
+
+        # FN
+        fn_mask = (outputs_c[:, 0] > self.th_c) & (min_dist < self.th_dist)
+
+        fn0 = outputs_c[:, 0][fn_mask]
+        fn_n = len(fn0)
+
+        min_n = min([tp_n, fp_n, tn_n, fn_n])
+        min_n = 10 if min_n == 0 else min_n
+
+        # TP
+
         if tp_n > 0:
             tp0 = tp0.unsqueeze(0)
             tp1 = outputs_c[:, 1][tp_mask].unsqueeze(0)
             tp = torch.cat([tp0, tp1], dim=0).unsqueeze(0)
+            tp = tp[:,:,:min_n]
 
         # FP
-        fp_mask = (outputs_c[:, 1] > th_c) & (min_dist > th_dist)
 
-        fp0 = outputs_c[:, 0][fp_mask]
-        fp_n = len(fp0)
         if fp_n > 0:
             fp0 = fp0.unsqueeze(0)
             fp1 = outputs_c[:, 1][fp_mask].unsqueeze(0)
             fp = torch.cat([fp0, fp1], dim=0).unsqueeze(0)
+            fp = fp[:,:,:min_n]
 
         # TN
-        tn_mask = (outputs_c[:, 0] > th_c) & (min_dist > th_dist)
 
-        tn0 = outputs_c[:, 0][tn_mask]
-        tn_n = len(tn0)
         if tn_n > 0:
             tn0 = tn0.unsqueeze(0)
             tn1 = outputs_c[:, 1][tn_mask].unsqueeze(0)
             tn = torch.cat([tn0, tn1], dim=0).unsqueeze(0)
+            tn = tn[:,:,:min_n]
 
         # FN
-        fn_mask = (outputs_c[:, 0] > th_c) & (min_dist < th_dist)
 
-        fn0 = outputs_c[:, 0][fn_mask]
-        fn_n = len(fn0)
         if fn_n > 0:
             fn0 = fn0.unsqueeze(0)
             fn1 = outputs_c[:, 1][fn_mask].unsqueeze(0)
             fn = torch.cat([fn0, fn1]).unsqueeze(0)
+            fn = fn[:,:,:min_n]
+
+
 
         tp_loss = self.criterion(tp, torch.ones((tp.size(0), tp.size(2))).long().cuda()) if tp_n > 0 else 0
 
