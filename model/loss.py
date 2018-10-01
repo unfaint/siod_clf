@@ -46,15 +46,17 @@ class MinDistLoss(torch.nn.Module):
 
     def forward(self, outputs_l, outputs_c, labels):
 
+        IMG_H = 193
+
         locations = outputs_l * 10 + self.rf_centers
         locations = locations.view(locations.shape[0], locations.shape[1], -1) # TODO replace with unfold
 
-        x_dist = torch.log(torch.exp(labels[0, :, 0].float().cuda().unsqueeze(1) / 257).matmul(
-            1 / torch.exp(locations[0, 0, :].unsqueeze(1).t() / 257)))
-        y_dist = torch.log(torch.exp(labels[0, :, 1].float().cuda().unsqueeze(1) / 257).matmul(
-            1 / torch.exp(locations[0, 1, :].unsqueeze(1).t() / 257)))
+        x_dist = torch.log(torch.exp(labels[0, :, 0].float().cuda().unsqueeze(1) / IMG_H).matmul(
+            1 / torch.exp(locations[0, 0, :].unsqueeze(1).t() / IMG_H)))
+        y_dist = torch.log(torch.exp(labels[0, :, 1].float().cuda().unsqueeze(1) / IMG_H).matmul(
+            1 / torch.exp(locations[0, 1, :].unsqueeze(1).t() / IMG_H)))
         xy_dist = torch.pow(x_dist, 2) + torch.pow(y_dist, 2)
-        xy_dist = xy_dist * 257 # TODO replace hardcoded dims with variables
+        xy_dist = xy_dist * IMG_H # TODO replace hardcoded dims with variables
 
         N_sq = outputs_l.size(2)
         dist_fold = torch.nn.functional.fold(torch.unsqueeze(xy_dist, 0), N_sq, (1, 1))
