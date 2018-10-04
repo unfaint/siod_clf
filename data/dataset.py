@@ -10,10 +10,11 @@ class COWCDataset(torch.utils.data.Dataset):
     https://github.com/LLNL/cowc/tree/master/COWC-M
     """
 
-    def __init__(self, file_list, transform= None):
+    def __init__(self, file_list, transform= None, mini= True):
         self.file_list = file_list
         self.labels = np.full((len(file_list),3), 0.0)
         self.transform = transform
+        self.mini = mini
 
     def __getitem__(self, index):
         file = self.file_list[index]
@@ -27,16 +28,22 @@ class COWCDataset(torch.utils.data.Dataset):
         # contained in file names, we randomly generate
         # regression labels
 
+        img_H = 256 if self.mini else 256
+        crop_h = 56 if self.mini else 94
+
+        H = int(img_H / 2)
+        h = int(crop_h / 2)
+
         x = label[0] = np.random.randint(-10, 10)
         y = label[1] = np.random.randint(-10, 10)
 
         label[0] = label[0] / 10
         label[1] = label[1] / 10
 
-        shift_x = 128 - 28 - x
-        shift_y = 128 - 28 - y
+        shift_x = H - h - x
+        shift_y = H - h - y
 
-        img = img[shift_y:shift_y + 57, shift_x:shift_x + 57]
+        img = img[shift_y:shift_y + crop_h + 1, shift_x:shift_x + crop_h + 1]
 
         if self.transform is not None:
             img = self.transform(img)
