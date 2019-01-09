@@ -4,7 +4,8 @@ from numpy import mean
 from sklearn.metrics import accuracy_score
 
 
-def train_model(model, criterion, optimizer, train_dataloader, test_dataloader= None, epochs= 10, iterations= None, accuracy= False):
+def train_model(model, criterion, optimizer, train_dataloader, test_dataloader= None,
+                epochs= 10, iterations= None, accuracy= False):
 
     if iterations is None:
         train_iterations = train_dataloader.__len__()
@@ -13,7 +14,7 @@ def train_model(model, criterion, optimizer, train_dataloader, test_dataloader= 
 
     test_iterations = train_iterations
 
-    if (test_dataloader is not None):
+    if test_dataloader is not None:
         test_iterations = test_dataloader.__len__() if test_iterations > test_dataloader.__len__() else test_iterations
 
     train_loss_list = []

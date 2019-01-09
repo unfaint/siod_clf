@@ -3,6 +3,9 @@ import torch
 import torch.utils.data
 from PIL import Image
 import os
+from osgeo import gdal
+from math import ceil
+import struct
 
 class COWCDataset(torch.utils.data.Dataset):
     """
@@ -72,3 +75,88 @@ class OIRDSDataset(torch.utils.data.Dataset):
 
     def __len__(self):
         return len(self.file_list)
+
+
+class CITDataset(torch.utils.data.Dataset):
+
+    def __init__(self, band, paths, transform= None, n= 0, size= (318, 318), jitter= 0):
+        # parameters
+        self.width, self.height = size
+        self.jitter = jitter
+
+        self.band = band
+
+        self.pos = self.get_coords(paths['pos'])
+        print('Positive examples: ', self.pos.shape[1])
+        self.neg = self.get_coords(paths['neg'])
+        print('Negative examples: ', self.neg.shape[1])
+
+        if n > 0:
+            self.coords = np.concatenate((
+                self.pos[:, np.random.choice(self.pos.shape[1], n)],
+                self.neg[:, np.random.choice(self.neg.shape[1], n)]), axis= 1)
+            self.labels = np.concatenate((np.full(n, 1), np.full(n, 0)))
+        else:
+            self.coords = np.concatenate((
+                self.pos,
+                self.neg), axis=1)
+            self.labels = np.concatenate((np.full(self.pos.shape[1], 1),
+                                          np.full(self.neg.shape[1], 0)))
+
+        self.transform = transform
+
+    def __getitem__(self, index):
+        labels = self.labels[index]
+
+        coords = self.coords[:, index]
+        width = self.width
+        height = self.height
+
+        xoff = int(coords[1] - ceil(width / 2))
+        yoff = int(coords[0] - ceil(height / 2))
+
+        if self.jitter > 0:
+            xoff += np.random.randint(-self.jitter, self.jitter)
+            yoff += np.random.randint(-self.jitter, self.jitter)
+
+        qx, qy = xoff, yoff
+        sx, sy = xoff + width, yoff + height
+
+        if qx < 0:
+            width = width - abs(qx) - 1
+
+        if qy < 0:
+            height = height - abs(qy) - 1
+
+        if sx > self.band.XSize:
+            width = width - (sx - self.band.XSize) - 1
+
+        if sy > self.band.YSize:
+            height = height - (sy - self.band.YSize) - 1
+
+        # TODO make image square again
+
+        scanline = self.band.ReadRaster(xoff, yoff,
+                                        width, height,
+                                        width, height, gdal.GDT_Float32)
+
+        tuple_of_floats = struct.unpack('f' * width * height, scanline)
+        img = np.array(list(tuple_of_floats)).reshape(height, width)
+        # img = np.expand_dims(img, 2)
+        img = Image.fromarray(np.uint8(img))
+
+        if self.transform is not None:
+            img = self.transform(img)
+
+        return img, torch.LongTensor([labels])
+
+    def __len__(self):
+        return self.coords.shape[1]
+
+    def get_coords(self, path):
+        img = np.array(Image.open(path))
+        mask = img[:, :, 1] == 255
+        grid = np.mgrid[0:img.shape[0], 0:img.shape[1]]
+        coords = grid[:, mask]
+
+        return coords

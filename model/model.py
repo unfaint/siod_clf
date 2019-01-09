@@ -2,11 +2,11 @@ import torch
 from torchvision.models import vgg16_bn
 
 class VGGRegCls(torch.nn.Module):
-    def __init__(self, mini= True):
+    def __init__(self, mini= True, grayscale= False):
         super(VGGRegCls, self).__init__()
         if mini:
             self.features = torch.nn.Sequential(
-                torch.nn.Conv2d(3, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
+                torch.nn.Conv2d(1 if grayscale else 3, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
                 torch.nn.BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True),
                 torch.nn.ReLU(inplace=True),
                 torch.nn.Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
