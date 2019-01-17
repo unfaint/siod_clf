@@ -48,6 +48,7 @@ class COWCDataset(torch.utils.data.Dataset):
 
         img = img[shift_y:shift_y + crop_h + 1, shift_x:shift_x + crop_h + 1]
 
+        print(len(img.shape))
         if self.transform is not None:
             img = self.transform(img)
 
@@ -133,8 +134,6 @@ class CITDataset(torch.utils.data.Dataset):
 
         if sy > self.band.YSize:
             height = height - (sy - self.band.YSize) - 1
-
-        # TODO make image square again
 
         scanline = self.band.ReadRaster(xoff, yoff,
                                         width, height,
