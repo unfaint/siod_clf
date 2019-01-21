@@ -9,6 +9,7 @@ class BBoxList:
         self.img_path = img_path
         self.frame = None
         self.columns = ['img_path', 'xoff', 'yoff', 'width', 'height', 'x1', 'y1', 'x2', 'y2', 'class_name']
+        self.dtypes = [str, int, int]
         self.bb_df = pd.DataFrame(columns=self.columns)
 
     def set_frame(self, xoff, yoff, width, height):
@@ -19,6 +20,9 @@ class BBoxList:
 
     def add_bbox(self, x1, y1, x2, y2, class_name):
         assert self.frame is not None
+        x1, x2 = sorted((x2, x1))
+        y1, y2 = sorted((y2, y1))
+
         x1 = max(x1, 0)
         y1 = max(y1, 0)
         x2 = min(x2, self.frame[2])
@@ -28,41 +32,32 @@ class BBoxList:
                      self.frame + \
                      [x1, y1, x2, y2, class_name]  # type: Union[List[Any], Any]
         print(bbox_entry)
-        add_df = pd.DataFrame(columns=self.columns, data=np.array(bbox_entry).reshape(1, len(bbox_entry)))
+        add_df = pd.DataFrame(columns=self.columns, data=[bbox_entry])
         self.bb_df = pd.concat([self.bb_df, add_df], axis=0, ignore_index=True)
 
+    def get_frames_in_patch(self, patch_x1, patch_y1, patch_x2, patch_y2, relative= True):
+        bb_df = self.bb_df.copy()
+        bb_df['xoff_x2'] = bb_df['xoff'] + bb_df['width']
+        bb_df['yoff_y2'] = bb_df['yoff'] + bb_df['height']
 
-class BFrame:
-    def __init__(self, xoff, yoff, width, height):
-        self.xoff = xoff
-        self.yoff = yoff
-        self.width = width
-        self.height = height
+        result_df = bb_df[
+            bb_df['xoff'].apply(lambda x: x > patch_x1)
+            & bb_df['yoff'].apply(lambda x: x > patch_y1)
+            & bb_df['xoff_x2'].apply(lambda x: x < patch_x2)
+            & bb_df['yoff_y2'].apply(lambda x: x < patch_y2)
+        ]
 
-        self.bbox_list = []
+        if relative:
+            result_df['xoff'] = result_df['xoff'].apply(lambda x: x - patch_x1)
+            result_df['yoff'] = result_df['yoff'].apply(lambda x: x - patch_y1)
+            result_df['xoff_x2'] = result_df['xoff_x2'].apply(lambda x: x - patch_x1)
+            result_df['yoff_y2'] = result_df['yoff_y2'].apply(lambda x: x - patch_y1)
 
-    def add_bbox(self, bbox):
-        self.bbox_list.append(bbox)
+        return result_df[['xoff', 'yoff', 'xoff_x2', 'yoff_y2']].values
 
-    def get_bbox_table(self):
-        bbox_table = []
-        for bb in self.bbox_list:
-            bbox_table.append([
-                bb.x1,
-                bb.y1,
-                bb.x2,
-                bb.y2,
-                bb.class_name
-            ])
+    def save_csv(self, filepath):
+        self.bb_df.to_csv(path_or_buf= filepath, sep= ',', header= None, index= None)
 
-        return np.array(bbox_table)
-
-
-class BBox:
-    def __init__(self, x1, y1, x2, y2, class_name):
-        self.x1 = x1
-        self.y1 = y1
-        self.x2 = x2
-        self.y2 = y2
-
-        self.class_name = class_name
+    def read_csv(self, filepath):
+        self.bb_df = pd.read_csv(filepath_or_buffer= filepath, sep= ',', header= None,
+                                 index_col= None, names= self.columns)

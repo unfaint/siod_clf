@@ -55,10 +55,10 @@ class TIFFPatchLoader:
 
         if b_ratio > ratio:  # height matters
             scale = buffer_y / y2
-            print('height')
+            # print('height')
         else:  # width matters
             scale = buffer_x / x2
-            print('width')
+            # print('width')
 
         buffer_x = int(x2 * scale)
         buffer_y = int(y2 * scale)

@@ -11,6 +11,8 @@ class TIFFViewer(tk.Tk):
     def __init__(self):
         super().__init__()
 
+        self.INITIAL_PATH = "/home/kruglov/projects/cit/"
+
         self.filepath = None
         self.tiff = None
         self.img = None
@@ -23,6 +25,8 @@ class TIFFViewer(tk.Tk):
         self.y1 = 0
         self.x0 = None
         self.y0 = None
+        self.x2 = None
+        self.y2 = None
         self.width = None
         self.height = None
 
@@ -33,6 +37,8 @@ class TIFFViewer(tk.Tk):
         self.start_bbox = None
         self.frame_coords = None
         self.frame = None
+
+        self.show_frames = False
 
         self.zoom_state = None
         self.zoom_scalefactor = None
@@ -50,11 +56,15 @@ class TIFFViewer(tk.Tk):
         # creating a top level menu
         self.menu_bar = tk.Menu(self)
         self.config(menu=self.menu_bar)
+
         # file submenu
         self.file_menu = tk.Menu(self.menu_bar, tearoff=0)
         self.menu_bar.add_cascade(label='File', menu=self.file_menu)
-        self.file_menu.add_command(label="Open...", underline=1, command=self.file_open, accelerator="Ctrl+O")
+        self.file_menu.add_command(label="Open Image...", underline=1, command=self.file_open, accelerator="Ctrl+O")
+        self.file_menu.add_command(label="Open CSV...", command=self.csv_open)
+        self.file_menu.add_command(label= "Save CSV...", underline= 1, command= self.csv_save)
         self.file_menu.add_command(label="Exit", command=self.quit)
+
         # view submenu
         self.view_menu = tk.Menu(self.menu_bar, tearoff=0)
         self.menu_bar.add_cascade(label='View', menu=self.view_menu)
@@ -62,6 +72,11 @@ class TIFFViewer(tk.Tk):
         self.view_menu.add_command(label="Zoom 1/3", command=lambda: self.zoom_switch_on(0.3), accelerator="Ctrl+3")
         self.view_menu.add_command(label="Zoom 1/2", command=lambda: self.zoom_switch_on(0.5), accelerator="Ctrl+2")
         self.view_menu.add_command(label="Zoom 1/1", command=self.zoom_switch_on, accelerator="Ctrl+1")
+
+        self.show_hide_frames = tk.IntVar()
+        self.view_menu.add_radiobutton(label="Show frames", variable= self.show_hide_frames, value= 1)
+        self.view_menu.add_radiobutton(label="Hide frames", variable= self.show_hide_frames, value= 0)
+
         # markup submenu
         self.annotation_menu = tk.Menu(self.menu_bar, tearoff=0)
         self.menu_bar.add_cascade(label='Annotation', menu=self.annotation_menu)
@@ -73,17 +88,32 @@ class TIFFViewer(tk.Tk):
 
         self.main()
 
-    def show_patch(self, x0=None, y0=None, x1=0, y1=0):
+    def show_patch(self, x0=None, y0=None, x1=0, y1=0, x2= None, y2= None):
         self.canvas.create_image(0, 0, anchor=tk.NW, image=self.img, tag='imagesprite')
-        self.set_patch_xy(x0=x0, y0=y0, x1=x1, y1=y1)
+        self.set_patch_xy(x0=x0, y0=y0, x1=x1, y1=y1, x2=x2, y2=y2)
+        if self.show_hide_frames.get() == 1:
+            self.show_frames_for_patch()
+        else:
+            print(self.show_hide_frames.get())
 
-    def set_patch_xy(self, x0=None, y0=None, x1=0, y1=0):
-        self.x1 = x1
-        self.y1 = y1
+    def show_frames_for_patch(self):
+        frames = self.bbox_list.get_frames_in_patch(self.x1, self.y1, self.x2, self.y2)
+        for f in frames:
+            f = f * self.scalefactor
+            self.canvas.create_rectangle(*f, tag='frame', width=2, outline='blue')
+
+    def set_patch_xy(self, x0=None, y0=None, x1=0, y1=0, x2= None, y2= None):
         self.x0 = x0 if x0 is not None else x1 + int((self.width / 2) / self.scalefactor)
         self.y0 = y0 if y0 is not None else y1 + int((self.height / 2) / self.scalefactor)
 
-        self.log_msg(['self.x0, self.y0', self.x0, self.y0], level= 1)
+        self.x1 = x1
+        self.y1 = y1
+
+        self.x2 = x2 if x2 is not None else x1 + int(self.width / self.scalefactor)
+        self.y2 = y2 if y2 is not None else y1 + int(self.height / self.scalefactor)
+
+        self.log_msg(['self.x0, self.y0, self.x1, self.y1, self.x2, self.y2',
+                      self.x0, self.y0, self.x1, self.y1, self.x2, self.y2], level= 1)
 
     def load_tiff(self, filepath):
         self.tiff = gdal.Open(filepath, gdal.GA_ReadOnly)
@@ -115,7 +145,7 @@ class TIFFViewer(tk.Tk):
 
         self.img = TIFFPatchLoader(self.tiff).get_patch(x1, y1, x2, y2, buffer_x, buffer_y)
         self.scalefactor = self.zoom_scalefactor
-        self.show_patch(x0=x0, y0=y0, x1=x1, y1=y1)
+        self.show_patch(x0=x0, y0=y0, x1=x1, y1=y1, x2= x2, y2= y2)
 
     def zoom_switch_on(self, zoom_scalefactor=1., event=None):
         self.zoom_state = True
@@ -188,7 +218,7 @@ class TIFFViewer(tk.Tk):
 
     def file_open(self, event=None, filepath=None):
         if filepath is None:
-            filepath = filedialog.askopenfilename(initialdir="/home/kruglov/projects/cit/",
+            filepath = filedialog.askopenfilename(initialdir=self.INITIAL_PATH,
                                                   title="Select file to open...",
                                                   filetypes=[('GeoTIFF files', '*.tif')])
 
@@ -198,6 +228,23 @@ class TIFFViewer(tk.Tk):
 
                 self.enable_menu('View')
                 self.enable_menu('Annotation')
+
+    def csv_open(self, event= None, filepath= None):
+        if filepath is None:
+            filepath = filedialog.askopenfilename(initialdir= self.INITIAL_PATH,
+                                                  title="Select annotations CSV file to open...",
+                                                  filetypes=[("Comma-separated CSV", '*.csv')])
+        if bool(filepath):
+            self.bbox_list.read_csv(filepath)
+
+    def csv_save(self, event= None, filepath= None):
+        if filepath is None:
+            filepath = filedialog.asksaveasfilename(initialdir= self.INITIAL_PATH,
+                                                    title="Select path and file name to save CSV...",
+                                                    filetypes=[("Comma-separated CSV", '*.csv')])
+        if bool(filepath):
+            self.bbox_list.save_csv(filepath)
+
 
     def enable_menu(self, menuname, event=None):
         self.menu_bar.entryconfig(menuname, state='normal')
