@@ -55,6 +55,28 @@ class BBoxList:
 
         return result_df[['xoff', 'yoff', 'xoff_x2', 'yoff_y2']].values
 
+    def get_bboxes_in_patch(self, patch_x1, patch_y1, patch_x2, patch_y2, relative= True):
+        bb_df = self.bb_df.copy()
+        bb_df['x1'] = bb_df['xoff'] + bb_df['x1']
+        bb_df['y1'] = bb_df['yoff'] + bb_df['y1']
+        bb_df['x2'] = bb_df['xoff'] + bb_df['x2']
+        bb_df['y2'] = bb_df['yoff'] + bb_df['y2']
+
+        result_df = bb_df[
+            bb_df['x1'].apply(lambda x: x > patch_x1)
+            & bb_df['y1'].apply(lambda x: x > patch_y1)
+            & bb_df['x2'].apply(lambda x: x < patch_x2)
+            & bb_df['y2'].apply(lambda x: x < patch_y2)
+            ]
+
+        if relative:
+            result_df['x1'] = result_df['x1'].apply(lambda x: x - patch_x1)
+            result_df['y1'] = result_df['y1'].apply(lambda x: x - patch_y1)
+            result_df['x2'] = result_df['x2'].apply(lambda x: x - patch_x1)
+            result_df['y2'] = result_df['y2'].apply(lambda x: x - patch_y1)
+
+        return result_df[['x1', 'y1', 'x2', 'y2']].values
+
     def save_csv(self, filepath):
         self.bb_df.to_csv(path_or_buf= filepath, sep= ',', header= None, index= None)
 

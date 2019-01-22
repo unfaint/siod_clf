@@ -51,7 +51,7 @@ class TIFFViewer(tk.Tk):
         self.canvas = ResizingCanvas(self)  # width= width + 10, height= height + 10
         self.canvas.bind('<Button-1>', self.click_handler)
 
-        self.canvas.pack(fill=tk.BOTH)
+        self.canvas.pack(fill=tk.BOTH, anchor= tk.NW)
 
         # creating a top level menu
         self.menu_bar = tk.Menu(self)
@@ -90,9 +90,11 @@ class TIFFViewer(tk.Tk):
 
     def show_patch(self, x0=None, y0=None, x1=0, y1=0, x2= None, y2= None):
         self.canvas.create_image(0, 0, anchor=tk.NW, image=self.img, tag='imagesprite')
+
         self.set_patch_xy(x0=x0, y0=y0, x1=x1, y1=y1, x2=x2, y2=y2)
         if self.show_hide_frames.get() == 1:
             self.show_frames_for_patch()
+            self.show_bboxes_for_patch()
         else:
             print(self.show_hide_frames.get())
 
@@ -101,6 +103,12 @@ class TIFFViewer(tk.Tk):
         for f in frames:
             f = f * self.scalefactor
             self.canvas.create_rectangle(*f, tag='frame', width=2, outline='blue')
+
+    def show_bboxes_for_patch(self):
+        bboxes = self.bbox_list.get_bboxes_in_patch(self.x1, self.y1, self.x2, self.y2)
+        for b in bboxes:
+            b = b * self.scalefactor
+            self.canvas.create_rectangle(*b, tag='bbox', width=2, outline='green')
 
     def set_patch_xy(self, x0=None, y0=None, x1=0, y1=0, x2= None, y2= None):
         self.x0 = x0 if x0 is not None else x1 + int((self.width / 2) / self.scalefactor)
@@ -124,7 +132,7 @@ class TIFFViewer(tk.Tk):
         self.bbox_list = BBoxList(filepath)
 
     def load_overview(self, event=None):
-        self.img, width, height, self.scalefactor = TIFFPatchLoader(self.tiff).get_overview(self.canvas.width,
+        self.img, self.width, self.height, self.scalefactor = TIFFPatchLoader(self.tiff).get_overview(self.canvas.width,
                                                                                             self.canvas.height)
         self.show_patch()
 
@@ -144,6 +152,9 @@ class TIFFViewer(tk.Tk):
         self.log_msg(['get_patch', x1, y1, x2, y2, buffer_x, buffer_y])
 
         self.img = TIFFPatchLoader(self.tiff).get_patch(x1, y1, x2, y2, buffer_x, buffer_y)
+
+        #
+
         self.scalefactor = self.zoom_scalefactor
         self.show_patch(x0=x0, y0=y0, x1=x1, y1=y1, x2= x2, y2= y2)
 
@@ -179,10 +190,10 @@ class TIFFViewer(tk.Tk):
         self.canvas.create_rectangle(*bbox, tag='bbox1', width=2, outline='green',
                                      activeoutline='yellow')
         self.bbox_list.add_bbox(
-            x1=int(self.click_x - self.canvas.width / 2 + 400),
-            y1=int(self.click_y - self.canvas.height / 2 + 400),
-            x2=int(event.x - self.canvas.width / 2 + 400),
-            y2=int(event.y - self.canvas.height / 2 + 400),
+            x1=int(self.click_x - self.width / 2 + 400),
+            y1=int(self.click_y - self.height / 2 + 400),
+            x2=int(event.x - self.width / 2 + 400),
+            y2=int(event.y - self.height / 2 + 400),
             class_name= 'car'
         )
         self.bbox_state = False
@@ -211,7 +222,7 @@ class TIFFViewer(tk.Tk):
             self.add_bbox_switch_off()
 
     def save_click_xy(self, event=None):
-        self.log_msg(['Click coordinates: ', event.x, event.y])
+        self.log_msg(['Click coordinates: ', event.x, event.y], level= 1)
 
         self.click_x = event.x
         self.click_y = event.y
