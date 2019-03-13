@@ -2,7 +2,7 @@ import torch
 from torchvision.models import vgg16_bn
 
 class VGGRegCls(torch.nn.Module):
-    def __init__(self, mini= True, grayscale= False):
+    def __init__(self, mini= True, grayscale= False, last_kernel=13, last_padding=3):
         super(VGGRegCls, self).__init__()
         if mini:
             self.features = torch.nn.Sequential(
@@ -34,11 +34,11 @@ class VGGRegCls(torch.nn.Module):
                 torch.nn.MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False),
             )
 
-            kernel_size = 13
+            kernel_size = last_kernel
 
             self.last_conv = torch.nn.Sequential(
                 torch.nn.Dropout(p=0.5),
-                torch.nn.Conv2d(256, 500, kernel_size=kernel_size, stride=1, padding=3), # PADDING!
+                torch.nn.Conv2d(256, 500, kernel_size=kernel_size, stride=1, padding=last_padding),  # PADDING!
                 torch.nn.BatchNorm2d(500, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True),
                 torch.nn.ReLU(),
             )

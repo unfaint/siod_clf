@@ -3,6 +3,7 @@ import struct
 import numpy as np
 import skimage
 from PIL import Image, ImageTk
+from time import time
 
 
 class TIFFPatchLoader:
@@ -11,6 +12,12 @@ class TIFFPatchLoader:
         self.band_num = tiff.RasterCount
 
     def get_patch(self, x1, y1, x2, y2, buffer_x=None, buffer_y=None):
+
+        # print(x1, y1, x2, y2)
+        x1 = int(x1)
+        y1 = int(y1)
+        x2 = int(x2)
+        y2 = int(y2)
 
         img_list = []
 
@@ -26,8 +33,10 @@ class TIFFPatchLoader:
         if buffer_y is None:
             buffer_y = height
 
+        time1 = time()
         for b in range(self.band_num):
             band = self.tiff.GetRasterBand(b + 1)
+            # print(x1, y1, width, height, buffer_x, buffer_y)
             scanline = band.ReadRaster(x1, y1, width, height, buffer_x, buffer_y, gdal.GDT_Float32)
             tuple_of_floats = struct.unpack('f' * buffer_x * buffer_y, scanline)
 
@@ -40,8 +49,8 @@ class TIFFPatchLoader:
             res_img = np.concatenate(img_list, axis=2)
 
         res_img = np.uint8(res_img)
-        res_img = Image.fromarray(res_img)
-        res_img = ImageTk.PhotoImage(res_img)
+
+        # print('Patch loaded in {} sec.'.format(time() - time1))
 
         return res_img
 
@@ -63,6 +72,6 @@ class TIFFPatchLoader:
         buffer_x = int(x2 * scale)
         buffer_y = int(y2 * scale)
 
-        print(x1, y1, x2, y2, buffer_x, buffer_y)
+        # print(x1, y1, x2, y2, buffer_x, buffer_y)
 
         return self.get_patch(x1, y1, x2, y2, buffer_x, buffer_y), buffer_x, buffer_y, scale
