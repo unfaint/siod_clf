@@ -73,9 +73,12 @@ class TIFFViewer(tk.Tk):
         self.menu_bar = tk.Menu(self)
         self.config(menu=self.menu_bar)
 
+        self.menu_names = []
+
         # file submenu
         self.file_menu = tk.Menu(self.menu_bar, tearoff=0)
         self.menu_bar.add_cascade(label='File', menu=self.file_menu)
+        self.menu_names.append('File')
         self.file_menu.add_command(label="Open Image...", underline=1, command=self.file_open, accelerator="Ctrl+O")
         self.file_menu.add_command(label="Open markup CSV...", command=self.csv_open)
         self.file_menu.add_command(label="Save markup CSV...", underline=1, command=self.csv_save)
@@ -87,6 +90,7 @@ class TIFFViewer(tk.Tk):
         # view submenu
         self.view_menu = tk.Menu(self.menu_bar, tearoff=0)
         self.menu_bar.add_cascade(label='View', menu=self.view_menu)
+        self.menu_names.append('View')
         self.view_menu.add_command(label="Overview", command=self.load_overview, accelerator="Ctrl+0")
         self.view_menu.add_command(label="Zoom 1/3", command=lambda: self.zoom_switch_on(0.3), accelerator="Ctrl+3")
         self.view_menu.add_command(label="Zoom 1/2", command=lambda: self.zoom_switch_on(0.5), accelerator="Ctrl+2")
@@ -103,12 +107,14 @@ class TIFFViewer(tk.Tk):
         # markup submenu
         self.annotation_menu = tk.Menu(self.menu_bar, tearoff=0)
         self.menu_bar.add_cascade(label='Annotation', menu=self.annotation_menu)
+        self.menu_names.append('Annotation')
         self.annotation_menu.add_command(label="Add label box...", command=self.add_bbox_switch_on,
                                          accelerator="B")
 
         # object detection submenu
         self.od_menu = tk.Menu(self.menu_bar, tearoff=0)
         self.menu_bar.add_cascade(label='Object detection', menu=self.od_menu)
+        self.menu_names.append('Object detection')
         self.od_menu.add_command(label='Detect objects in current frame...', command=self.detect_objects,
                                  accelerator="Ctrl-D")
         self.od_menu.add_command(label='Detect objects in area...', command=self.select_area_switch_on)
@@ -411,7 +417,7 @@ class TIFFViewer(tk.Tk):
         self.frame = self.canvas.create_rectangle(*(f_x1, f_y1, f_x2, f_y2), tag='frame', width=2, outline='red')
 
         self.log_msg('Object detection started...', level=1)
-
+        self.busy_mode_start()
         x1 = self.x0 - 400
         y1 = self.y0 - 400
         x2 = self.x0 + 400
@@ -426,8 +432,10 @@ class TIFFViewer(tk.Tk):
             b_x2 = f_x1 + int(b[2])
             b_y2 = f_y1 + int(b[3])
             self.canvas.create_rectangle(*(b_x1, b_y1, b_x2, b_y2), width=2, outline='green')
+        self.busy_mode_stop()
 
     def apply_distance_filter(self, event=None):
+        self.busy_mode_start()
         bbox_list = self.predictor.apply_distance_filter(
             path=self.filepath,
             xoff=self.x0 - 400,
@@ -446,6 +454,7 @@ class TIFFViewer(tk.Tk):
             b_x2 = f_x1 + int(b[2])
             b_y2 = f_y1 + int(b[3])
             self.canvas.create_rectangle(*(b_x1, b_y1, b_x2, b_y2), width=2, outline='yellow')
+        self.busy_mode_stop()
 
     def select_area_switch_on(self, event=None):
         self.area_state = True
@@ -469,6 +478,7 @@ class TIFFViewer(tk.Tk):
         a_x2 = x2 / self.scalefactor
         a_y2 = y2 / self.scalefactor
 
+        self.busy_mode_start()
         bbox_list = self.predictor.get_bboxes_for_area(tiff=self.tiff, a_x1=a_x1, a_y1=a_y1, a_x2=a_x2, a_y2=a_y2)
         columns = ['xoff', 'yoff', 'width', 'height', 'x1', 'y1', 'x2', 'y2']
         bb_df = pd.DataFrame(columns=columns, data=bbox_list)
@@ -477,6 +487,7 @@ class TIFFViewer(tk.Tk):
 
         self.bbox_list.load_df(df=bb_df)
 
+        self.busy_mode_stop()
         self.config(cursor="arrow")
 
     def enable_menu(self, menuname, event=None):
@@ -484,6 +495,16 @@ class TIFFViewer(tk.Tk):
 
     def disable_menu(self, menuname, event=None):
         self.menu_bar.entryconfig(menuname, state='disabled')
+
+    def busy_mode_start(self):
+        self.config(cursor='watch')
+        for m in self.menu_names:
+            self.disable_menu(m)
+
+    def busy_mode_stop(self):
+        self.config(cursor='arrow')
+        for m in self.menu_names:
+            self.enable_menu(m)
 
     def log_msg(self, msg, level=0):
         if level > 0:

@@ -126,10 +126,12 @@ class RetinaNetPredictor:
 
         self.bboxes = None
 
-    def model_load(self, filepath):
+    def model_load(self, filepath, cuda=True):
         print('Loading model...')
         try:
-            self.model = torch.load(filepath).cuda()
+            self.model = torch.load(filepath)
+            if cuda:
+                self.model = self.model.cuda()
             self.model.eval()
             print('Model loaded successfully!')
             return True
@@ -242,7 +244,7 @@ class RetinaNetPredictor:
             print('Bounding boxes list is empty!')
 
     def get_bboxes_for_area(self, tiff, a_x1, a_y1, a_x2, a_y2, f_w=800, f_h=800, overlap=40):
-        pl = TIFFPatchLoader(tiff=tiff)
+        # pl = TIFFPatchLoader(tiff=tiff)
 
         a_w = a_x2 - a_x1
         a_h = a_y2 - a_y1
@@ -255,10 +257,6 @@ class RetinaNetPredictor:
             torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                              std=[0.229, 0.224, 0.225])
         ])
-
-        time1 = time()
-        time_pl = 0.
-        time_predictor = 0.
 
         patches = []
 
@@ -286,12 +284,19 @@ class RetinaNetPredictor:
         # print('Patches shape: ', patches.shape)
         batch_size = 16
 
+        time1 = time()
+
         dataset = TIFFPatchDataset(tiff=tiff, patches=patches, transform=transform)
         dataloader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=False, num_workers=0)
         dataiter = iter(dataloader)
 
+        print('Preparation time:', time() - time1)
+
+        time1 = time_pl1 = time()
+        time_pl = 0.
+        time_predictor = 0.
+
         bbox_list = []
-        time_pl1 = time()
 
         with torch.no_grad():
             current_iter = 1
@@ -329,7 +334,7 @@ class RetinaNetPredictor:
 
                 time_pl1 = time()
                 elapsed = time() - time1
-                print('[{}/{}] Elapsed: {} sec, estimated: {} sec.'.format(
+                print('[{}/{}] Elapsed: {:.1f} sec, estimated: {:.1f} sec.'.format(
                     current_iter, iterations, elapsed,
                     (iterations - current_iter) * (elapsed / current_iter)
                 ))
@@ -337,7 +342,7 @@ class RetinaNetPredictor:
                 current_iter += 1
 
         print('Patches:', current_patch)
-        print("Total time spent: \n * on image loading: {},\n * on prediction: {}.".format(time_pl, time_predictor))
+        print("Total time spent: \n * on image loading: {:.1f},\n * on prediction: {:.1f}.".format(time_pl, time_predictor))
         bbox_list = np.array(bbox_list)
         # print('Bbox list shape: ', bbox_list.shape)
         return bbox_list
